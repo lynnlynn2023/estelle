@@ -19,6 +19,7 @@ PAUSE_TRANSITION = ROOT / "Assets/Actions/暂停过渡_跳跃转正面到坐下/
 RESUME_TRANSITION = ROOT / "Assets/Actions/继续过渡_打坐跳起回到走路/Frames"
 STUMBLE = ROOT / "Assets/Actions/走路中差点摔倒又站稳/Frames"
 RUNTIME_SIZE = (900, 900)
+WALK_VISIBLE_HEIGHT = 735
 
 WALK_NAMES = [
     "01-right-foot-contact.png",
@@ -57,7 +58,10 @@ def save_struggle_frames() -> None:
 
     widths = [box[2] - box[0] for box in boxes if box is not None]
     heights = [box[3] - box[1] for box in boxes if box is not None]
-    scale = min((RUNTIME_SIZE[0] - 36) / max(widths), (RUNTIME_SIZE[1] - 36) / max(heights))
+    # The lifted artwork was authored larger than the walking sprites. Match
+    # the walk cycle's tallest visible character height so clicking never makes
+    # Estelle appear to grow, while preserving one scale across all four poses.
+    scale = min((RUNTIME_SIZE[0] - 36) / max(widths), WALK_VISIBLE_HEIGHT / max(heights))
 
     for old_frame in RESOURCES.glob("struggle-*.png"):
         old_frame.unlink()
