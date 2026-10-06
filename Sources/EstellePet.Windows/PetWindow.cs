@@ -20,6 +20,8 @@ internal sealed class PetWindow : Window
     {
         Walking,
         StaffSpin,
+        Pausing,
+        Resuming,
     }
 
     private enum DisplayMode
@@ -27,6 +29,8 @@ internal sealed class PetWindow : Window
         None,
         Walking,
         StaffSpin,
+        PauseTransition,
+        ResumeTransition,
         Struggle,
         Meditate,
     }
@@ -49,6 +53,16 @@ internal sealed class PetWindow : Window
         0.160, 0.085, 0.085, 0.085, 0.075, 0.120,
     ];
 
+    private static readonly double[] PauseTransitionFrameDurations =
+    [
+        0.250, 0.070, 0.070, 0.085, 0.085, 0.180, 0.180, 0.180, 0.220, 0.120,
+    ];
+
+    private static readonly double[] ResumeTransitionFrameDurations =
+    [
+        0.100, 0.100, 0.120, 0.100, 0.100, 0.080, 0.080, 0.140,
+    ];
+
     private static readonly int[] StruggleFrameSequence = [0, 1, 2, 3, 2, 1];
     private static readonly double[] StruggleFrameDurations = [0.190, 0.180, 0.160, 0.180, 0.160, 0.180];
 
@@ -57,6 +71,8 @@ internal sealed class PetWindow : Window
     private readonly System.Windows.Controls.Image _petImage;
     private readonly BitmapSource[] _walkFrames;
     private readonly BitmapSource[] _actionFrames;
+    private readonly BitmapSource[] _pauseTransitionFrames;
+    private readonly BitmapSource[] _resumeTransitionFrames;
     private readonly BitmapSource[] _struggleFrames;
     private readonly BitmapSource[] _meditateFrames;
     private readonly DispatcherTimer _timer;
@@ -77,10 +93,15 @@ internal sealed class PetWindow : Window
     private DisplayMode _displayMode = DisplayMode.None;
     private int _displayFrameIndex = -1;
     private int _actionFrameIndex;
+    private int _pauseTransitionFrameIndex;
+    private int _resumeTransitionFrameIndex;
+    private int _pauseStaffTargetIndex = -1;
     private int _struggleStepIndex;
     private double _lastUpdate;
     private double _animationTime;
     private double _actionElapsed;
+    private double _pauseTransitionElapsed;
+    private double _resumeTransitionElapsed;
     private double _struggleElapsed;
     private double _meditationTime;
     private double _timeUntilAction = 5.0;
@@ -92,6 +113,7 @@ internal sealed class PetWindow : Window
     private bool _movesAcrossScreen;
     private bool _dragging;
     private bool _paused;
+    private bool _pauseRequested;
     private bool _hidden;
     private bool _exiting;
 
@@ -140,6 +162,8 @@ internal sealed class PetWindow : Window
 
         _walkFrames = LoadFrames("walk-square-right", 4, oneBased: true);
         _actionFrames = LoadFrames("action", 29, oneBased: true, twoDigit: true);
+        _pauseTransitionFrames = LoadFrames("pause-transition", 10, oneBased: true, twoDigit: true);
+        _resumeTransitionFrames = LoadFrames("resume-transition", 8, oneBased: true, twoDigit: true);
         _struggleFrames = LoadFrames("struggle", 4, oneBased: true, twoDigit: true);
         _meditateFrames = LoadFrames("meditate", 24, oneBased: true, twoDigit: true);
         ShowWalkFrame(0);
@@ -225,6 +249,18 @@ internal sealed class PetWindow : Window
             return;
         }
 
+        if (_motionMode == MotionMode.Pausing)
+        {
+            AdvancePauseTransition(delta);
+            return;
+        }
+
+        if (_motionMode == MotionMode.Resuming)
+        {
+            AdvanceResumeTransition(delta);
+            return;
+        }
+
         if (_motionMode == MotionMode.StaffSpin)
         {
             AdvanceStaffSpin(delta);
@@ -235,8 +271,14 @@ internal sealed class PetWindow : Window
         var frameIndex = (int)Math.Floor(_animationTime / WalkFrameDuration) % _walkFrames.Length;
         ShowWalkFrame(frameIndex);
 
+        if (_pauseRequested && frameIndex == 3)
+        {
+            StartPauseTransition(0);
+            return;
+        }
+
         _timeUntilAction -= delta;
-        if (_timeUntilAction <= 0)
+        if (!_pauseRequested && _timeUntilAction <= 0)
         {
             StartStaffSpin();
             return;
@@ -289,7 +331,93 @@ internal sealed class PetWindow : Window
             return;
         }
 
+        if (_pauseRequested && _pauseStaffTargetIndex >= 0 &&
+            _actionFrameIndex >= _pauseStaffTargetIndex)
+        {
+            StartPauseTransition(6);
+            return;
+        }
+
         ShowActionFrame(_actionFrameIndex);
+    }
+
+    private void StartPauseTransition(int frameIndex)
+    {
+        _motionMode = MotionMode.Pausing;
+        _pauseTransitionFrameIndex = Math.Clamp(frameIndex, 0, PauseTransitionFrameDurations.Length - 1);
+        _pauseTransitionElapsed = 0;
+        _pauseStaffTargetIndex = -1;
+        ShowPauseTransitionFrame(_pauseTransitionFrameIndex);
+    }
+
+    private void AdvancePauseTransition(double delta)
+    {
+        _pauseTransitionElapsed += delta;
+        while (_pauseTransitionFrameIndex < PauseTransitionFrameDurations.Length &&
+               _pauseTransitionElapsed >= PauseTransitionFrameDurations[_pauseTransitionFrameIndex])
+        {
+            _pauseTransitionElapsed -= PauseTransitionFrameDurations[_pauseTransitionFrameIndex];
+            _pauseTransitionFrameIndex++;
+        }
+
+        if (_pauseTransitionFrameIndex >= PauseTransitionFrameDurations.Length)
+        {
+            FinishPauseTransition();
+            return;
+        }
+
+        ShowPauseTransitionFrame(_pauseTransitionFrameIndex);
+    }
+
+    private void FinishPauseTransition()
+    {
+        if (_pauseRequested)
+        {
+            _paused = true;
+            _motionMode = MotionMode.Walking;
+            _meditationTime = 0;
+            ShowMeditateFrame(0);
+        }
+        else
+        {
+            _motionMode = MotionMode.Walking;
+            _animationTime = 3 * WalkFrameDuration;
+            _timeUntilAction = RandomActionDelay();
+            ShowWalkFrame(3);
+        }
+    }
+
+    private void StartResumeTransition()
+    {
+        _paused = false;
+        _pauseRequested = false;
+        _pauseStaffTargetIndex = -1;
+        _motionMode = MotionMode.Resuming;
+        _resumeTransitionFrameIndex = 0;
+        _resumeTransitionElapsed = 0;
+        ShowResumeTransitionFrame(0);
+    }
+
+    private void AdvanceResumeTransition(double delta)
+    {
+        _resumeTransitionElapsed += delta;
+        while (_resumeTransitionFrameIndex < ResumeTransitionFrameDurations.Length &&
+               _resumeTransitionElapsed >= ResumeTransitionFrameDurations[_resumeTransitionFrameIndex])
+        {
+            _resumeTransitionElapsed -= ResumeTransitionFrameDurations[_resumeTransitionFrameIndex];
+            _resumeTransitionFrameIndex++;
+        }
+
+        if (_resumeTransitionFrameIndex >= ResumeTransitionFrameDurations.Length)
+        {
+            _motionMode = MotionMode.Walking;
+            _animationTime = 3 * WalkFrameDuration;
+            _timeUntilAction = RandomActionDelay();
+            ShowWalkFrame(3);
+            return;
+        }
+
+        ShowResumeTransitionFrame(_resumeTransitionFrameIndex);
     }
 
     private void AdvanceStruggle(double delta)
@@ -315,6 +443,8 @@ internal sealed class PetWindow : Window
 
     private void ShowWalkFrame(int index) => ShowFrame(DisplayMode.Walking, _walkFrames, index);
     private void ShowActionFrame(int index) => ShowFrame(DisplayMode.StaffSpin, _actionFrames, index);
+    private void ShowPauseTransitionFrame(int index) => ShowFrame(DisplayMode.PauseTransition, _pauseTransitionFrames, index);
+    private void ShowResumeTransitionFrame(int index) => ShowFrame(DisplayMode.ResumeTransition, _resumeTransitionFrames, index);
     private void ShowStruggleFrame(int index) => ShowFrame(DisplayMode.Struggle, _struggleFrames, index);
     private void ShowMeditateFrame(int index) => ShowFrame(DisplayMode.Meditate, _meditateFrames, index);
 
@@ -517,19 +647,35 @@ internal sealed class PetWindow : Window
 
     private void TogglePause()
     {
-        _paused = !_paused;
-        _pauseMenuItem.Text = _paused ? "继续" : "暂停";
         if (_paused)
         {
-            _motionMode = MotionMode.Walking;
-            _meditationTime = 0;
-            ShowMeditateFrame(0);
+            _pauseMenuItem.Text = "暂停";
+            StartResumeTransition();
+        }
+        else if (_pauseRequested)
+        {
+            _pauseRequested = false;
+            _pauseStaffTargetIndex = -1;
+            _pauseMenuItem.Text = "暂停";
         }
         else
         {
-            var frame = (int)Math.Floor(_animationTime / WalkFrameDuration) % _walkFrames.Length;
-            ShowWalkFrame(frame);
-            _timeUntilAction = RandomActionDelay();
+            _pauseRequested = true;
+            _pauseMenuItem.Text = "继续";
+            if (_motionMode == MotionMode.StaffSpin)
+            {
+                _pauseStaffTargetIndex = _actionFrameIndex <= 5
+                    ? 5
+                    : _actionFrameIndex <= 22 ? 22 : -1;
+            }
+            else if (_motionMode == MotionMode.Walking && !_dragging)
+            {
+                var frame = (int)Math.Floor(_animationTime / WalkFrameDuration) % _walkFrames.Length;
+                if (frame == 3)
+                {
+                    StartPauseTransition(0);
+                }
+            }
         }
 
         _lastUpdate = _clock.Elapsed.TotalSeconds;

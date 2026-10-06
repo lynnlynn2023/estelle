@@ -16,12 +16,36 @@ from PIL import Image, ImageDraw, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 ACTION_DIR = ROOT / "Assets" / "Actions" / "坐下打坐"
 SOURCE = ACTION_DIR / "Sources" / "meditate-joshua-thought-master.png"
+SCALED_SOURCE = ACTION_DIR / "Sources" / "meditate-joshua-thought-master-standing-scale.png"
 FRAMES_DIR = ACTION_DIR / "Frames"
 PREVIEW_DIR = ACTION_DIR / "Preview"
 
 FRAME_COUNT = 24
 FRAME_MS = 100
 PORTRAIT_CENTER = (987, 250)
+STANDING_CHARACTER_SCALE = 0.72
+
+
+def fit_to_standing_character_scale(image: Image.Image) -> Image.Image:
+    """Match the seated character's head scale to the approved front standing pose."""
+    alpha_box = image.getchannel("A").getbbox()
+    if alpha_box is None:
+        raise ValueError("Meditation image contains no visible pixels")
+
+    width = round(image.width * STANDING_CHARACTER_SCALE)
+    height = round(image.height * STANDING_CHARACTER_SCALE)
+    resized = image.resize((width, height), Image.Resampling.LANCZOS)
+    scaled_box = resized.getchannel("A").getbbox()
+    if scaled_box is None:
+        raise ValueError("Scaled meditation image contains no visible pixels")
+
+    canvas = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    x = round((image.width - width) / 2)
+    # Preserve the original ground line while adding the extra transparent room
+    # required by the smaller, standing-matched character scale.
+    y = image.height - scaled_box[3]
+    canvas.alpha_composite(resized, (x, y))
+    return canvas
 
 
 def portrait_mask(image: Image.Image) -> Image.Image:
@@ -136,7 +160,13 @@ def main() -> None:
 
     source = Image.open(SOURCE).convert("RGBA")
     base, portrait_crop, bbox = prepare_layers(source)
-    frames = [animate_frame(base, portrait_crop, bbox, index) for index in range(FRAME_COUNT)]
+    unscaled_frames = [animate_frame(base, portrait_crop, bbox, index) for index in range(FRAME_COUNT)]
+
+    # The original seated illustration was drawn with a noticeably larger head
+    # than the standing and crouching poses. Scale the complete composition only
+    # after animating Joshua so every loop frame keeps the exact same registration.
+    frames = [fit_to_standing_character_scale(frame) for frame in unscaled_frames]
+    fit_to_standing_character_scale(source).save(SCALED_SOURCE, optimize=True)
 
     for stale in FRAMES_DIR.glob("meditate-joshua-*.png"):
         stale.unlink()
@@ -195,14 +225,16 @@ def main() -> None:
     x0, y0, x1, y1 = bbox
     margin = 12
     guard[max(0, y0 - margin):min(source.height, y1 + margin), max(0, x0 - margin):min(source.width, x1 + margin)] = True
-    reference = np.asarray(frames[0])
+    reference = np.asarray(unscaled_frames[0])
     max_outside_delta = max(
         int(np.abs(np.asarray(frame).astype(np.int16) - reference.astype(np.int16))[~guard].max(initial=0))
-        for frame in frames[1:]
+        for frame in unscaled_frames[1:]
     )
     print(f"portrait_bbox={bbox}")
     print(f"fill_colour={tuple(base.getpixel(PORTRAIT_CENTER)[:3])}")
     print(f"max_outside_portrait_delta={max_outside_delta}")
+    print(f"standing_character_scale={STANDING_CHARACTER_SCALE}")
+    print(SCALED_SOURCE)
     print(webp_path)
     print(gif_path)
     print(contact_path)

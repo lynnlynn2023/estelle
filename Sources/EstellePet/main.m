@@ -14,6 +14,8 @@
 @property(nonatomic, weak) PetController *controller;
 - (void)showWalkDirection:(CGFloat)direction frameIndex:(NSInteger)frameIndex;
 - (void)showActionFrame:(NSInteger)frameIndex;
+- (void)showPauseTransitionFrame:(NSInteger)frameIndex;
+- (void)showResumeTransitionFrame:(NSInteger)frameIndex;
 - (void)showStruggleFrame:(NSInteger)frameIndex;
 - (void)showMeditateFrame:(NSInteger)frameIndex;
 @end
@@ -29,6 +31,8 @@
     NSArray<NSImage *> *_rightFrames;
     NSArray<NSImage *> *_leftFrames;
     NSArray<NSImage *> *_actionFrames;
+    NSArray<NSImage *> *_pauseTransitionFrames;
+    NSArray<NSImage *> *_resumeTransitionFrames;
     NSArray<NSImage *> *_struggleFrames;
     NSArray<NSImage *> *_meditateFrames;
     NSInteger _shownMode;
@@ -47,6 +51,8 @@
         _rightFrames = [self loadWalkFramesForDirection:@"right"];
         _leftFrames = [self loadWalkFramesForDirection:@"left"];
         _actionFrames = [self loadActionFrames];
+        _pauseTransitionFrames = [self loadPauseTransitionFrames];
+        _resumeTransitionFrames = [self loadResumeTransitionFrames];
         _struggleFrames = [self loadStruggleFrames];
         _meditateFrames = [self loadMeditateFrames];
 
@@ -86,6 +92,28 @@
     NSMutableArray<NSImage *> *frames = [NSMutableArray arrayWithCapacity:4];
     for (NSInteger index = 1; index <= 4; index++) {
         NSString *name = [NSString stringWithFormat:@"struggle-%02ld", (long)index];
+        NSURL *url = [NSBundle.mainBundle URLForResource:name withExtension:@"png"];
+        NSImage *image = url ? [[NSImage alloc] initWithContentsOfURL:url] : nil;
+        if (image) [frames addObject:image];
+    }
+    return frames;
+}
+
+- (NSArray<NSImage *> *)loadPauseTransitionFrames {
+    NSMutableArray<NSImage *> *frames = [NSMutableArray arrayWithCapacity:10];
+    for (NSInteger index = 1; index <= 10; index++) {
+        NSString *name = [NSString stringWithFormat:@"pause-transition-%02ld", (long)index];
+        NSURL *url = [NSBundle.mainBundle URLForResource:name withExtension:@"png"];
+        NSImage *image = url ? [[NSImage alloc] initWithContentsOfURL:url] : nil;
+        if (image) [frames addObject:image];
+    }
+    return frames;
+}
+
+- (NSArray<NSImage *> *)loadResumeTransitionFrames {
+    NSMutableArray<NSImage *> *frames = [NSMutableArray arrayWithCapacity:8];
+    for (NSInteger index = 1; index <= 8; index++) {
+        NSString *name = [NSString stringWithFormat:@"resume-transition-%02ld", (long)index];
         NSURL *url = [NSBundle.mainBundle URLForResource:name withExtension:@"png"];
         NSImage *image = url ? [[NSImage alloc] initWithContentsOfURL:url] : nil;
         if (image) [frames addObject:image];
@@ -141,6 +169,26 @@
     _imageView.image = _struggleFrames[safeIndex];
 }
 
+- (void)showPauseTransitionFrame:(NSInteger)frameIndex {
+    if (_pauseTransitionFrames.count == 0) return;
+    NSInteger safeIndex = MAX(0, MIN(frameIndex, (NSInteger)_pauseTransitionFrames.count - 1));
+    if (_shownMode == 4 && _shownIndex == safeIndex) return;
+    _shownMode = 4;
+    _shownIndex = safeIndex;
+    _shownDirection = 1;
+    _imageView.image = _pauseTransitionFrames[safeIndex];
+}
+
+- (void)showResumeTransitionFrame:(NSInteger)frameIndex {
+    if (_resumeTransitionFrames.count == 0) return;
+    NSInteger safeIndex = MAX(0, MIN(frameIndex, (NSInteger)_resumeTransitionFrames.count - 1));
+    if (_shownMode == 5 && _shownIndex == safeIndex) return;
+    _shownMode = 5;
+    _shownIndex = safeIndex;
+    _shownDirection = 1;
+    _imageView.image = _resumeTransitionFrames[safeIndex];
+}
+
 - (void)showMeditateFrame:(NSInteger)frameIndex {
     if (_meditateFrames.count == 0) return;
     NSInteger safeIndex = frameIndex % _meditateFrames.count;
@@ -159,6 +207,8 @@
 typedef NS_ENUM(NSInteger, PetMotionMode) {
     PetMotionModeWalking = 0,
     PetMotionModeStaffSpin = 1,
+    PetMotionModePausing = 2,
+    PetMotionModeResuming = 3,
 };
 
 static const CGFloat PetAspectRatio = 1.0;
@@ -171,12 +221,20 @@ static const CGFloat WalkingSpeedLeisurely = 28;
 static const NSTimeInterval WalkFrameDuration = 0.22;
 static const NSTimeInterval MeditateFrameDuration = 0.10;
 static const NSInteger ActionFrameCount = 29;
+static const NSInteger PauseTransitionFrameCount = 10;
+static const NSInteger ResumeTransitionFrameCount = 8;
 static const NSTimeInterval ActionFrameDurations[] = {
     0.250, 0.070, 0.070, 0.085, 0.085, 0.230,
     0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072,
     0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072,
     0.260,
     0.160, 0.085, 0.085, 0.085, 0.075, 0.120,
+};
+static const NSTimeInterval PauseTransitionFrameDurations[] = {
+    0.250, 0.070, 0.070, 0.085, 0.085, 0.180, 0.180, 0.180, 0.220, 0.120,
+};
+static const NSTimeInterval ResumeTransitionFrameDurations[] = {
+    0.100, 0.100, 0.120, 0.100, 0.100, 0.080, 0.080, 0.140,
 };
 static const NSInteger StruggleStepCount = 6;
 static const NSInteger StruggleFrameSequence[] = {0, 1, 2, 3, 2, 1};
@@ -199,9 +257,14 @@ static const NSTimeInterval StruggleFrameDurations[] = {
 @property(nonatomic) NSTimeInterval actionElapsed;
 @property(nonatomic) NSTimeInterval timeUntilAction;
 @property(nonatomic) NSInteger actionFrameIndex;
+@property(nonatomic) NSInteger pauseTransitionFrameIndex;
+@property(nonatomic) NSInteger resumeTransitionFrameIndex;
+@property(nonatomic) NSInteger pauseStaffTargetIndex;
 @property(nonatomic) NSInteger struggleStepIndex;
 @property(nonatomic) NSTimeInterval struggleElapsed;
 @property(nonatomic) NSTimeInterval meditationTime;
+@property(nonatomic) NSTimeInterval pauseTransitionElapsed;
+@property(nonatomic) NSTimeInterval resumeTransitionElapsed;
 @property(nonatomic) PetMotionMode motionMode;
 @property(nonatomic) CGFloat direction;
 @property(nonatomic) CGFloat petHeight;
@@ -210,6 +273,7 @@ static const NSTimeInterval StruggleFrameDurations[] = {
 @property(nonatomic) NSPoint dragOffset;
 @property(nonatomic) BOOL dragging;
 @property(nonatomic) BOOL paused;
+@property(nonatomic) BOOL pauseRequested;
 @property(nonatomic) BOOL hidden;
 @property(nonatomic) BOOL movesAcrossScreen;
 @end
@@ -221,6 +285,7 @@ static const NSTimeInterval StruggleFrameDurations[] = {
     if (self) {
         _direction = 1;
         _motionMode = PetMotionModeWalking;
+        _pauseStaffTargetIndex = -1;
         _timeUntilAction = 5.0;
 
         NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
@@ -443,7 +508,80 @@ static const NSTimeInterval StruggleFrameDurations[] = {
         [self finishStaffSpin];
         return;
     }
+    if (self.pauseRequested && self.pauseStaffTargetIndex >= 0 &&
+        self.actionFrameIndex >= self.pauseStaffTargetIndex) {
+        [self startPauseTransitionAtIndex:6];
+        return;
+    }
     [self.petView showActionFrame:self.actionFrameIndex];
+}
+
+- (void)startPauseTransitionAtIndex:(NSInteger)frameIndex {
+    self.motionMode = PetMotionModePausing;
+    self.pauseTransitionFrameIndex = MAX(0, MIN(frameIndex, PauseTransitionFrameCount - 1));
+    self.pauseTransitionElapsed = 0;
+    self.pauseStaffTargetIndex = -1;
+    [self.petView showPauseTransitionFrame:self.pauseTransitionFrameIndex];
+}
+
+- (void)finishPauseTransition {
+    if (self.pauseRequested) {
+        self.paused = YES;
+        self.motionMode = PetMotionModeWalking;
+        self.meditationTime = 0;
+        [self.petView showMeditateFrame:0];
+    } else {
+        self.motionMode = PetMotionModeWalking;
+        self.animationTime = 3 * WalkFrameDuration;
+        self.timeUntilAction = [self randomActionDelay];
+        [self.petView showWalkDirection:1 frameIndex:3];
+    }
+}
+
+- (void)advancePauseTransitionBy:(NSTimeInterval)delta {
+    self.pauseTransitionElapsed += delta;
+    while (self.pauseTransitionFrameIndex < PauseTransitionFrameCount &&
+           self.pauseTransitionElapsed >= PauseTransitionFrameDurations[self.pauseTransitionFrameIndex]) {
+        self.pauseTransitionElapsed -= PauseTransitionFrameDurations[self.pauseTransitionFrameIndex];
+        self.pauseTransitionFrameIndex += 1;
+    }
+    if (self.pauseTransitionFrameIndex >= PauseTransitionFrameCount) {
+        [self finishPauseTransition];
+        return;
+    }
+    [self.petView showPauseTransitionFrame:self.pauseTransitionFrameIndex];
+}
+
+- (void)startResumeTransition {
+    self.paused = NO;
+    self.pauseRequested = NO;
+    self.pauseStaffTargetIndex = -1;
+    self.motionMode = PetMotionModeResuming;
+    self.resumeTransitionFrameIndex = 0;
+    self.resumeTransitionElapsed = 0;
+    [self.petView showResumeTransitionFrame:0];
+}
+
+- (void)finishResumeTransition {
+    self.motionMode = PetMotionModeWalking;
+    self.direction = 1;
+    self.animationTime = 3 * WalkFrameDuration;
+    self.timeUntilAction = [self randomActionDelay];
+    [self.petView showWalkDirection:1 frameIndex:3];
+}
+
+- (void)advanceResumeTransitionBy:(NSTimeInterval)delta {
+    self.resumeTransitionElapsed += delta;
+    while (self.resumeTransitionFrameIndex < ResumeTransitionFrameCount &&
+           self.resumeTransitionElapsed >= ResumeTransitionFrameDurations[self.resumeTransitionFrameIndex]) {
+        self.resumeTransitionElapsed -= ResumeTransitionFrameDurations[self.resumeTransitionFrameIndex];
+        self.resumeTransitionFrameIndex += 1;
+    }
+    if (self.resumeTransitionFrameIndex >= ResumeTransitionFrameCount) {
+        [self finishResumeTransition];
+        return;
+    }
+    [self.petView showResumeTransitionFrame:self.resumeTransitionFrameIndex];
 }
 
 - (void)advanceStruggleBy:(NSTimeInterval)delta {
@@ -477,6 +615,16 @@ static const NSTimeInterval StruggleFrameDurations[] = {
         return;
     }
 
+    if (self.motionMode == PetMotionModePausing) {
+        [self advancePauseTransitionBy:delta];
+        return;
+    }
+
+    if (self.motionMode == PetMotionModeResuming) {
+        [self advanceResumeTransitionBy:delta];
+        return;
+    }
+
     if (self.motionMode == PetMotionModeStaffSpin) {
         [self advanceStaffSpinBy:delta];
         return;
@@ -485,8 +633,12 @@ static const NSTimeInterval StruggleFrameDurations[] = {
     self.animationTime += delta;
     NSInteger frameIndex = (NSInteger)floor(self.animationTime / WalkFrameDuration) % 4;
     [self.petView showWalkDirection:self.direction frameIndex:frameIndex];
+    if (self.pauseRequested && frameIndex == 3) {
+        [self startPauseTransitionAtIndex:0];
+        return;
+    }
     self.timeUntilAction -= delta;
-    if (self.timeUntilAction <= 0) {
+    if (!self.pauseRequested && self.timeUntilAction <= 0) {
         if (self.direction < 0) {
             self.direction = 1;
             self.timeUntilAction = 0.75;
@@ -554,16 +706,28 @@ static const NSTimeInterval StruggleFrameDurations[] = {
 }
 
 - (void)togglePause:(id)sender {
-    self.paused = !self.paused;
-    self.pauseItem.title = self.paused ? @"继续" : @"暂停";
     if (self.paused) {
-        self.motionMode = PetMotionModeWalking;
-        self.meditationTime = 0;
-        [self.petView showMeditateFrame:0];
+        self.pauseItem.title = @"暂停";
+        [self startResumeTransition];
+    } else if (self.pauseRequested) {
+        self.pauseRequested = NO;
+        self.pauseStaffTargetIndex = -1;
+        self.pauseItem.title = @"暂停";
     } else {
-        NSInteger frameIndex = (NSInteger)floor(self.animationTime / WalkFrameDuration) % 4;
-        [self.petView showWalkDirection:self.direction frameIndex:frameIndex];
-        self.timeUntilAction = [self randomActionDelay];
+        self.pauseRequested = YES;
+        self.pauseItem.title = @"继续";
+        if (self.motionMode == PetMotionModeStaffSpin) {
+            if (self.actionFrameIndex <= 5) {
+                self.pauseStaffTargetIndex = 5;
+            } else if (self.actionFrameIndex <= 22) {
+                self.pauseStaffTargetIndex = 22;
+            } else {
+                self.pauseStaffTargetIndex = -1;
+            }
+        } else if (self.motionMode == PetMotionModeWalking && !self.dragging) {
+            NSInteger frameIndex = (NSInteger)floor(self.animationTime / WalkFrameDuration) % 4;
+            if (frameIndex == 3) [self startPauseTransitionAtIndex:0];
+        }
     }
     self.lastUpdate = NSProcessInfo.processInfo.systemUptime;
 }

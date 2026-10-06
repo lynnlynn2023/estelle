@@ -15,6 +15,8 @@ RESOURCES = ROOT / "Sources/EstellePet/Resources"
 RIGHT_WALK = ROOT / "Assets/Actions/从左向右走/Frames"
 STRUGGLE = ROOT / "Assets/Actions/被鼠标提起_气呼呼挣扎/Frames"
 MEDITATE = ROOT / "Assets/Actions/坐下打坐/Frames"
+PAUSE_TRANSITION = ROOT / "Assets/Actions/暂停过渡_跳跃转正面到坐下/Frames"
+RESUME_TRANSITION = ROOT / "Assets/Actions/继续过渡_打坐跳起回到走路/Frames"
 RUNTIME_SIZE = (900, 900)
 
 WALK_NAMES = [
@@ -86,6 +88,32 @@ def save_meditate_frames() -> None:
         runtime_frame(frame).save(RESOURCES / f"meditate-{index:02d}.png", optimize=True)
 
 
+def save_pause_transition_frames() -> None:
+    """Copy the approved 10-frame pause-entry animation into app resources."""
+    source_frames = sorted(PAUSE_TRANSITION.glob("pause-transition-*.png"))
+    if len(source_frames) != 10:
+        raise ValueError(f"Expected 10 pause transition frames, found {len(source_frames)}")
+
+    for old_frame in RESOURCES.glob("pause-transition-*.png"):
+        old_frame.unlink()
+    for index, source_path in enumerate(source_frames, start=1):
+        frame = Image.open(source_path).convert("RGBA")
+        runtime_frame(frame).save(RESOURCES / f"pause-transition-{index:02d}.png", optimize=True)
+
+
+def save_resume_transition_frames() -> None:
+    """Copy the approved 8-frame spring-up animation into app resources."""
+    source_frames = sorted(RESUME_TRANSITION.glob("resume-transition-*.png"))
+    if len(source_frames) != 8:
+        raise ValueError(f"Expected 8 resume transition frames, found {len(source_frames)}")
+
+    for old_frame in RESOURCES.glob("resume-transition-*.png"):
+        old_frame.unlink()
+    for index, source_path in enumerate(source_frames, start=1):
+        frame = Image.open(source_path).convert("RGBA")
+        runtime_frame(frame).save(RESOURCES / f"resume-transition-{index:02d}.png", optimize=True)
+
+
 def build_action_frames() -> list[Image.Image]:
     side = Image.open(RIGHT_WALK / WALK_NAMES[3]).convert("RGBA")
     base, hand = action.load_spin_layers()
@@ -139,6 +167,8 @@ def main() -> None:
     save_walk_frames()
     save_struggle_frames()
     save_meditate_frames()
+    save_pause_transition_frames()
+    save_resume_transition_frames()
     save_action_frames()
 
 
