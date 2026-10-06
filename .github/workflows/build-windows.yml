@@ -35,11 +35,17 @@ jobs:
           }
           Stop-Process -Id $process.Id -Force
 
+      - name: Prepare portable release filenames
+        shell: pwsh
+        run: |
+          Copy-Item "release/艾丝蒂尔桌宠-Windows-x64.zip" "release/EstellePet-Windows-x64.zip"
+          Copy-Item "release/艾丝蒂尔桌宠-macOS-arm64.zip" "release/EstellePet-macOS-arm64.zip"
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: EstellePet-Windows-x64
-          path: release/艾丝蒂尔桌宠-Windows-x64.zip
+          path: release/EstellePet-Windows-x64.zip
           if-no-files-found: error
 
       - name: Create GitHub release for tag
@@ -49,7 +55,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.ref_name }}" `
-            "release/艾丝蒂尔桌宠-Windows-x64.zip" `
-            "release/艾丝蒂尔桌宠-macOS-arm64.zip" `
+            "release/EstellePet-Windows-x64.zip" `
+            "release/EstellePet-macOS-arm64.zip" `
             --generate-notes `
             --title "艾丝蒂尔桌宠 ${{ github.ref_name }}"

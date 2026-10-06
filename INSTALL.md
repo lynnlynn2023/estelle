@@ -23,7 +23,7 @@
 
 ## Windows 安装
 
-1. 在 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases) 下载 `艾丝蒂尔桌宠-Windows-x64.zip`。
+1. 在 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases) 下载 `EstellePet-Windows-x64.zip`。
 2. 将 ZIP 完整解压到一个普通文件夹，不要直接在压缩包里运行。
 3. 双击 `EstellePet.exe`。
 4. 启动后，Windows 任务栏右侧托盘区会出现双马尾图标。

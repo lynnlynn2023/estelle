@@ -31,7 +31,7 @@
 
 ### Windows
 
-1. 在 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases) 下载 `艾丝蒂尔桌宠-Windows-x64.zip`。
+1. 在 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases) 下载 `EstellePet-Windows-x64.zip`。
 2. 解压到任意普通文件夹，运行 `EstellePet.exe`。
 3. 如出现 SmartScreen，选择“更多信息”→“仍要运行”。
 
