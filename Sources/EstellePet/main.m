@@ -16,6 +16,7 @@
 - (void)showActionFrame:(NSInteger)frameIndex;
 - (void)showPauseTransitionFrame:(NSInteger)frameIndex;
 - (void)showResumeTransitionFrame:(NSInteger)frameIndex;
+- (void)showStumbleFrame:(NSInteger)frameIndex;
 - (void)showStruggleFrame:(NSInteger)frameIndex;
 - (void)showMeditateFrame:(NSInteger)frameIndex;
 @end
@@ -33,6 +34,7 @@
     NSArray<NSImage *> *_actionFrames;
     NSArray<NSImage *> *_pauseTransitionFrames;
     NSArray<NSImage *> *_resumeTransitionFrames;
+    NSArray<NSImage *> *_stumbleFrames;
     NSArray<NSImage *> *_struggleFrames;
     NSArray<NSImage *> *_meditateFrames;
     NSInteger _shownMode;
@@ -53,6 +55,7 @@
         _actionFrames = [self loadActionFrames];
         _pauseTransitionFrames = [self loadPauseTransitionFrames];
         _resumeTransitionFrames = [self loadResumeTransitionFrames];
+        _stumbleFrames = [self loadStumbleFrames];
         _struggleFrames = [self loadStruggleFrames];
         _meditateFrames = [self loadMeditateFrames];
 
@@ -132,6 +135,17 @@
     return frames;
 }
 
+- (NSArray<NSImage *> *)loadStumbleFrames {
+    NSMutableArray<NSImage *> *frames = [NSMutableArray arrayWithCapacity:5];
+    for (NSInteger index = 1; index <= 5; index++) {
+        NSString *name = [NSString stringWithFormat:@"stumble-%02ld", (long)index];
+        NSURL *url = [NSBundle.mainBundle URLForResource:name withExtension:@"png"];
+        NSImage *image = url ? [[NSImage alloc] initWithContentsOfURL:url] : nil;
+        if (image) [frames addObject:image];
+    }
+    return frames;
+}
+
 - (void)layout {
     [super layout];
     _imageView.frame = self.bounds;
@@ -189,6 +203,16 @@
     _imageView.image = _resumeTransitionFrames[safeIndex];
 }
 
+- (void)showStumbleFrame:(NSInteger)frameIndex {
+    if (_stumbleFrames.count == 0) return;
+    NSInteger safeIndex = MAX(0, MIN(frameIndex, (NSInteger)_stumbleFrames.count - 1));
+    if (_shownMode == 6 && _shownIndex == safeIndex) return;
+    _shownMode = 6;
+    _shownIndex = safeIndex;
+    _shownDirection = 1;
+    _imageView.image = _stumbleFrames[safeIndex];
+}
+
 - (void)showMeditateFrame:(NSInteger)frameIndex {
     if (_meditateFrames.count == 0) return;
     NSInteger safeIndex = frameIndex % _meditateFrames.count;
@@ -209,6 +233,7 @@ typedef NS_ENUM(NSInteger, PetMotionMode) {
     PetMotionModeStaffSpin = 1,
     PetMotionModePausing = 2,
     PetMotionModeResuming = 3,
+    PetMotionModeStumbling = 4,
 };
 
 static const CGFloat PetAspectRatio = 1.0;
@@ -223,6 +248,7 @@ static const NSTimeInterval MeditateFrameDuration = 0.10;
 static const NSInteger ActionFrameCount = 29;
 static const NSInteger PauseTransitionFrameCount = 10;
 static const NSInteger ResumeTransitionFrameCount = 8;
+static const NSInteger StumbleFrameCount = 5;
 static const NSTimeInterval ActionFrameDurations[] = {
     0.250, 0.070, 0.070, 0.085, 0.085, 0.230,
     0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072,
@@ -235,6 +261,9 @@ static const NSTimeInterval PauseTransitionFrameDurations[] = {
 };
 static const NSTimeInterval ResumeTransitionFrameDurations[] = {
     0.100, 0.100, 0.120, 0.100, 0.100, 0.080, 0.080, 0.140,
+};
+static const NSTimeInterval StumbleFrameDurations[] = {
+    0.100, 0.120, 0.220, 0.140, 0.180,
 };
 static const NSInteger StruggleStepCount = 6;
 static const NSInteger StruggleFrameSequence[] = {0, 1, 2, 3, 2, 1};
@@ -256,15 +285,18 @@ static const NSTimeInterval StruggleFrameDurations[] = {
 @property(nonatomic) NSTimeInterval animationTime;
 @property(nonatomic) NSTimeInterval actionElapsed;
 @property(nonatomic) NSTimeInterval timeUntilAction;
+@property(nonatomic) NSTimeInterval timeUntilStumble;
 @property(nonatomic) NSInteger actionFrameIndex;
 @property(nonatomic) NSInteger pauseTransitionFrameIndex;
 @property(nonatomic) NSInteger resumeTransitionFrameIndex;
+@property(nonatomic) NSInteger stumbleFrameIndex;
 @property(nonatomic) NSInteger pauseStaffTargetIndex;
 @property(nonatomic) NSInteger struggleStepIndex;
 @property(nonatomic) NSTimeInterval struggleElapsed;
 @property(nonatomic) NSTimeInterval meditationTime;
 @property(nonatomic) NSTimeInterval pauseTransitionElapsed;
 @property(nonatomic) NSTimeInterval resumeTransitionElapsed;
+@property(nonatomic) NSTimeInterval stumbleElapsed;
 @property(nonatomic) PetMotionMode motionMode;
 @property(nonatomic) CGFloat direction;
 @property(nonatomic) CGFloat petHeight;
@@ -287,6 +319,7 @@ static const NSTimeInterval StruggleFrameDurations[] = {
         _motionMode = PetMotionModeWalking;
         _pauseStaffTargetIndex = -1;
         _timeUntilAction = 5.0;
+        _timeUntilStumble = [self randomStumbleDelay];
 
         NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
         _petHeight = [defaults objectForKey:@"walkOnlyPetSizeV1"]
@@ -339,6 +372,10 @@ static const NSTimeInterval StruggleFrameDurations[] = {
 
 - (NSTimeInterval)randomActionDelay {
     return 11.0 + ((NSTimeInterval)arc4random_uniform(7001) / 1000.0);
+}
+
+- (NSTimeInterval)randomStumbleDelay {
+    return 24.0 + ((NSTimeInterval)arc4random_uniform(24001) / 1000.0);
 }
 
 - (void)configureStatusItem {
@@ -584,6 +621,35 @@ static const NSTimeInterval StruggleFrameDurations[] = {
     [self.petView showResumeTransitionFrame:self.resumeTransitionFrameIndex];
 }
 
+- (void)startStumble {
+    self.motionMode = PetMotionModeStumbling;
+    self.stumbleFrameIndex = 0;
+    self.stumbleElapsed = 0;
+    [self.petView showStumbleFrame:0];
+}
+
+- (void)finishStumble {
+    self.motionMode = PetMotionModeWalking;
+    self.direction = 1;
+    self.animationTime = 0;
+    self.timeUntilStumble = [self randomStumbleDelay];
+    [self.petView showWalkDirection:1 frameIndex:0];
+}
+
+- (void)advanceStumbleBy:(NSTimeInterval)delta {
+    self.stumbleElapsed += delta;
+    while (self.stumbleFrameIndex < StumbleFrameCount &&
+           self.stumbleElapsed >= StumbleFrameDurations[self.stumbleFrameIndex]) {
+        self.stumbleElapsed -= StumbleFrameDurations[self.stumbleFrameIndex];
+        self.stumbleFrameIndex += 1;
+    }
+    if (self.stumbleFrameIndex >= StumbleFrameCount) {
+        [self finishStumble];
+        return;
+    }
+    [self.petView showStumbleFrame:self.stumbleFrameIndex];
+}
+
 - (void)advanceStruggleBy:(NSTimeInterval)delta {
     self.struggleElapsed += delta;
     while (self.struggleElapsed >= StruggleFrameDurations[self.struggleStepIndex]) {
@@ -630,11 +696,21 @@ static const NSTimeInterval StruggleFrameDurations[] = {
         return;
     }
 
+    if (self.motionMode == PetMotionModeStumbling) {
+        [self advanceStumbleBy:delta];
+        return;
+    }
+
     self.animationTime += delta;
     NSInteger frameIndex = (NSInteger)floor(self.animationTime / WalkFrameDuration) % 4;
     [self.petView showWalkDirection:self.direction frameIndex:frameIndex];
     if (self.pauseRequested && frameIndex == 3) {
         [self startPauseTransitionAtIndex:0];
+        return;
+    }
+    self.timeUntilStumble -= delta;
+    if (!self.pauseRequested && self.timeUntilStumble <= 0 && frameIndex == 0) {
+        [self startStumble];
         return;
     }
     self.timeUntilAction -= delta;
@@ -677,6 +753,7 @@ static const NSTimeInterval StruggleFrameDurations[] = {
     self.struggleStepIndex = 0;
     self.struggleElapsed = 0;
     self.timeUntilAction = [self randomActionDelay];
+    self.timeUntilStumble = [self randomStumbleDelay];
     [self.petView showStruggleFrame:StruggleFrameSequence[0]];
     NSPoint mouse = NSEvent.mouseLocation;
     self.dragOffset = NSMakePoint(mouse.x - NSMinX(self.panel.frame), mouse.y - NSMinY(self.panel.frame));

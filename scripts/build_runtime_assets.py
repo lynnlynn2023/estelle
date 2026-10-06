@@ -17,6 +17,7 @@ STRUGGLE = ROOT / "Assets/Actions/被鼠标提起_气呼呼挣扎/Frames"
 MEDITATE = ROOT / "Assets/Actions/坐下打坐/Frames"
 PAUSE_TRANSITION = ROOT / "Assets/Actions/暂停过渡_跳跃转正面到坐下/Frames"
 RESUME_TRANSITION = ROOT / "Assets/Actions/继续过渡_打坐跳起回到走路/Frames"
+STUMBLE = ROOT / "Assets/Actions/走路中差点摔倒又站稳/Frames"
 RUNTIME_SIZE = (900, 900)
 
 WALK_NAMES = [
@@ -114,6 +115,19 @@ def save_resume_transition_frames() -> None:
         runtime_frame(frame).save(RESOURCES / f"resume-transition-{index:02d}.png", optimize=True)
 
 
+def save_stumble_frames() -> None:
+    """Copy the five-frame walking stumble into app resources."""
+    source_frames = sorted(STUMBLE.glob("stumble-*.png"))
+    if len(source_frames) != 5:
+        raise ValueError(f"Expected 5 stumble frames, found {len(source_frames)}")
+
+    for old_frame in RESOURCES.glob("stumble-*.png"):
+        old_frame.unlink()
+    for index, source_path in enumerate(source_frames, start=1):
+        frame = Image.open(source_path).convert("RGBA")
+        runtime_frame(frame).save(RESOURCES / f"stumble-{index:02d}.png", optimize=True)
+
+
 def build_action_frames() -> list[Image.Image]:
     side = Image.open(RIGHT_WALK / WALK_NAMES[3]).convert("RGBA")
     base, hand = action.load_spin_layers()
@@ -169,6 +183,7 @@ def main() -> None:
     save_meditate_frames()
     save_pause_transition_frames()
     save_resume_transition_frames()
+    save_stumble_frames()
     save_action_frames()
 
 

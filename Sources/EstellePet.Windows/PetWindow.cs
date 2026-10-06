@@ -22,6 +22,7 @@ internal sealed class PetWindow : Window
         StaffSpin,
         Pausing,
         Resuming,
+        Stumbling,
     }
 
     private enum DisplayMode
@@ -33,6 +34,7 @@ internal sealed class PetWindow : Window
         ResumeTransition,
         Struggle,
         Meditate,
+        Stumble,
     }
 
     private const double PetSizeSmall = 180;
@@ -65,6 +67,7 @@ internal sealed class PetWindow : Window
 
     private static readonly int[] StruggleFrameSequence = [0, 1, 2, 3, 2, 1];
     private static readonly double[] StruggleFrameDurations = [0.190, 0.180, 0.160, 0.180, 0.160, 0.180];
+    private static readonly double[] StumbleFrameDurations = [0.100, 0.120, 0.220, 0.140, 0.180];
 
     private readonly PetSettings _settings;
     private readonly Grid _dragSurface;
@@ -75,6 +78,7 @@ internal sealed class PetWindow : Window
     private readonly BitmapSource[] _resumeTransitionFrames;
     private readonly BitmapSource[] _struggleFrames;
     private readonly BitmapSource[] _meditateFrames;
+    private readonly BitmapSource[] _stumbleFrames;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
 
@@ -97,6 +101,7 @@ internal sealed class PetWindow : Window
     private int _resumeTransitionFrameIndex;
     private int _pauseStaffTargetIndex = -1;
     private int _struggleStepIndex;
+    private int _stumbleFrameIndex;
     private double _lastUpdate;
     private double _animationTime;
     private double _actionElapsed;
@@ -104,7 +109,9 @@ internal sealed class PetWindow : Window
     private double _resumeTransitionElapsed;
     private double _struggleElapsed;
     private double _meditationTime;
+    private double _stumbleElapsed;
     private double _timeUntilAction = 5.0;
+    private double _timeUntilStumble = RandomStumbleDelay();
     private double _movementX;
     private double _petSize;
     private double _walkingSpeed;
@@ -166,6 +173,7 @@ internal sealed class PetWindow : Window
         _resumeTransitionFrames = LoadFrames("resume-transition", 8, oneBased: true, twoDigit: true);
         _struggleFrames = LoadFrames("struggle", 4, oneBased: true, twoDigit: true);
         _meditateFrames = LoadFrames("meditate", 24, oneBased: true, twoDigit: true);
+        _stumbleFrames = LoadFrames("stumble", 5, oneBased: true, twoDigit: true);
         ShowWalkFrame(0);
 
         CreateTrayIcon();
@@ -267,6 +275,12 @@ internal sealed class PetWindow : Window
             return;
         }
 
+        if (_motionMode == MotionMode.Stumbling)
+        {
+            AdvanceStumble(delta);
+            return;
+        }
+
         _animationTime += delta;
         var frameIndex = (int)Math.Floor(_animationTime / WalkFrameDuration) % _walkFrames.Length;
         ShowWalkFrame(frameIndex);
@@ -274,6 +288,13 @@ internal sealed class PetWindow : Window
         if (_pauseRequested && frameIndex == 3)
         {
             StartPauseTransition(0);
+            return;
+        }
+
+        _timeUntilStumble -= delta;
+        if (!_pauseRequested && _timeUntilStumble <= 0 && frameIndex == 0)
+        {
+            StartStumble();
             return;
         }
 
@@ -439,7 +460,38 @@ internal sealed class PetWindow : Window
         ShowMeditateFrame(frameIndex);
     }
 
+    private void StartStumble()
+    {
+        _motionMode = MotionMode.Stumbling;
+        _stumbleFrameIndex = 0;
+        _stumbleElapsed = 0;
+        ShowStumbleFrame(0);
+    }
+
+    private void AdvanceStumble(double delta)
+    {
+        _stumbleElapsed += delta;
+        while (_stumbleFrameIndex < StumbleFrameDurations.Length &&
+               _stumbleElapsed >= StumbleFrameDurations[_stumbleFrameIndex])
+        {
+            _stumbleElapsed -= StumbleFrameDurations[_stumbleFrameIndex];
+            _stumbleFrameIndex++;
+        }
+
+        if (_stumbleFrameIndex >= StumbleFrameDurations.Length)
+        {
+            _motionMode = MotionMode.Walking;
+            _animationTime = 0;
+            _timeUntilStumble = RandomStumbleDelay();
+            ShowWalkFrame(0);
+            return;
+        }
+
+        ShowStumbleFrame(_stumbleFrameIndex);
+    }
+
     private static double RandomActionDelay() => 11.0 + Random.Shared.NextDouble() * 7.0;
+    private static double RandomStumbleDelay() => 24.0 + Random.Shared.NextDouble() * 24.0;
 
     private void ShowWalkFrame(int index) => ShowFrame(DisplayMode.Walking, _walkFrames, index);
     private void ShowActionFrame(int index) => ShowFrame(DisplayMode.StaffSpin, _actionFrames, index);
@@ -447,6 +499,7 @@ internal sealed class PetWindow : Window
     private void ShowResumeTransitionFrame(int index) => ShowFrame(DisplayMode.ResumeTransition, _resumeTransitionFrames, index);
     private void ShowStruggleFrame(int index) => ShowFrame(DisplayMode.Struggle, _struggleFrames, index);
     private void ShowMeditateFrame(int index) => ShowFrame(DisplayMode.Meditate, _meditateFrames, index);
+    private void ShowStumbleFrame(int index) => ShowFrame(DisplayMode.Stumble, _stumbleFrames, index);
 
     private void ShowFrame(DisplayMode mode, BitmapSource[] frames, int index)
     {
@@ -475,6 +528,7 @@ internal sealed class PetWindow : Window
         _struggleStepIndex = 0;
         _struggleElapsed = 0;
         _timeUntilAction = RandomActionDelay();
+        _timeUntilStumble = RandomStumbleDelay();
         _dragOffsetX = cursor.X - windowRect.Left;
         _dragOffsetY = cursor.Y - windowRect.Top;
         ShowStruggleFrame(StruggleFrameSequence[0]);
