@@ -37,6 +37,25 @@ def runtime_frame(image: Image.Image) -> Image.Image:
     return image.convert("RGBA").resize(RUNTIME_SIZE, Image.Resampling.LANCZOS)
 
 
+def fitted_runtime_keyframe(image: Image.Image, visible_width: int, ground_y: int) -> Image.Image:
+    """Fit generated crouch art to the standing frame without altering its source."""
+    rgba = image.convert("RGBA")
+    box = rgba.getchannel("A").getbbox()
+    if box is None:
+        raise ValueError("Transition keyframe contains no visible pixels")
+    crop = rgba.crop(box)
+    scale = visible_width / crop.width
+    resized = crop.resize(
+        (visible_width, round(crop.height * scale)),
+        Image.Resampling.LANCZOS,
+    )
+    frame = Image.new("RGBA", RUNTIME_SIZE, (0, 0, 0, 0))
+    x = (RUNTIME_SIZE[0] - resized.width) // 2
+    y = ground_y - resized.height
+    frame.alpha_composite(resized, (x, y))
+    return frame
+
+
 def remove_thought_bubble(image: Image.Image) -> Image.Image:
     """Remove only the disconnected bubble and dots; keep Estelle untouched."""
     rgba = np.asarray(image.convert("RGBA")).copy()
@@ -52,6 +71,13 @@ def remove_thought_bubble(image: Image.Image) -> Image.Image:
     # Include the low-alpha antialiased halo surrounding each disconnected shape.
     removal_mask = cv2.dilate(removal_mask, np.ones((11, 11), np.uint8), iterations=1)
     rgba[removal_mask > 0] = 0
+    # Keep the single connected Estelle-and-staff silhouette. This also removes
+    # isolated sub-pixel remnants left by the bubble's antialiased edge.
+    remaining = (rgba[:, :, 3] > 0).astype(np.uint8)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(remaining, 8)
+    if count > 1:
+        subject = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+        rgba[(labels != 0) & (labels != subject)] = 0
     return Image.fromarray(rgba)
 
 
@@ -59,8 +85,11 @@ def build_frames() -> list[Image.Image]:
     full_action = action_frames()
     standing_to_front = full_action[:6]
 
-    half_crouch = runtime_frame(Image.open(HALF_CROUCH))
-    deep_crouch = runtime_frame(Image.open(DEEP_CROUCH))
+    # Both generated crouch sources are good drawings, but their transparent
+    # canvases made them render 17% and 30% larger than the standing pose. Fit
+    # only their runtime copies to the standing frame's 686 px visible width.
+    half_crouch = fitted_runtime_keyframe(Image.open(HALF_CROUCH), visible_width=686, ground_y=848)
+    deep_crouch = fitted_runtime_keyframe(Image.open(DEEP_CROUCH), visible_width=686, ground_y=875)
 
     raw_seated = remove_thought_bubble(Image.open(MEDITATE_MASTER).convert("RGBA"))
     seated = meditation.fit_to_standing_character_scale(raw_seated)
