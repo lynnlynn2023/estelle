@@ -35,10 +35,9 @@ jobs:
           }
           Stop-Process -Id $process.Id -Force
 
-      - name: Prepare portable release filenames
+      - name: Prepare macOS release filename
         shell: pwsh
         run: |
-          Copy-Item "release/艾丝蒂尔桌宠-Windows-x64.zip" "release/EstellePet-Windows-x64.zip"
           Copy-Item "release/艾丝蒂尔桌宠-macOS-arm64.zip" "release/EstellePet-macOS-arm64.zip"
 
       - name: Upload workflow artifact

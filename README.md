@@ -1,43 +1,48 @@
 # 艾丝蒂尔桌宠（macOS / Windows）
 
-一个仅供个人交流使用的桌面宠物，以《空之轨迹》的艾丝蒂尔为角色，采用 3D 质感的二维逐帧动画。提供原生 macOS 版和 Windows WPF 版，两者共用同一套动画素材，无声音、无网络请求。
+一个仅供个人交流使用的桌面宠物，以《空之轨迹》的艾丝蒂尔为角色，采用 3D 质感的二维逐帧动画。项目同时提供原生 macOS 版和 Windows WPF 版，两者共用同一套角色与动画素材。
 
 ![从左向右走](Assets/Actions/从左向右走/Preview/从左向右走.gif)
+
+## 下载
+
+普通用户不需要下载源码，请打开 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases/latest) 下载与系统对应的压缩包。
+
+| 系统 | 下载包 | 系统要求 |
+| --- | --- | --- |
+| Windows | `EstellePet-Windows-x64.zip` | 64 位 Windows 10/11 |
+| macOS | `EstellePet-macOS-arm64.zip` | Apple Silicon，macOS 13 或更高版本 |
+
+完整的安装、首次启动、SmartScreen/Gatekeeper 处理和卸载步骤见 [INSTALL.md](INSTALL.md)。
 
 ## 功能
 
 - 从左向右缓慢行走，到达当前屏幕右侧后从同一屏幕左侧重新走入。
-- macOS 菜单栏或 Windows 系统托盘可在“走路”和“原地踏步”之间切换。
+- 可在“走路”和“原地踏步”之间切换。
 - 每次只在一块屏幕活动；拖到另一块屏幕后，松手即切换活动屏幕。
 - 随机穿插两圈转棍动作。
 - 鼠标拎起时气呼呼地缓慢扑腾。
 - 暂停时盘腿打坐，想法泡泡中的约修亚头像轻微浮动。
-- 菜单栏支持暂停、隐藏、三档尺寸和三档速度。
-- 记住桌宠上次放置的位置。
+- macOS 菜单栏或 Windows 系统托盘支持暂停、隐藏、三档尺寸和三档速度。
+- 记住上次的位置、尺寸、速度和移动方式。
+- 无声音、无广告、无网络请求，不安装后台服务或开机启动项。
 
-## 安装
-
-面向普通用户的完整步骤见 [INSTALL.md](INSTALL.md)。
-
-简要步骤：
-
-### macOS
-
-1. 下载 `release/艾丝蒂尔桌宠-macOS-arm64.zip`。
-2. 解压后将 `艾丝蒂尔桌宠.app` 拖进“应用程序”。
-3. 首次启动时右键应用并选择“打开”。
-
-当前构建支持 Apple Silicon Mac，要求 macOS 13 或更高版本。应用使用本机临时签名，没有 Apple Developer ID 公证，因此朋友首次打开时可能看到 macOS 安全提示。
+## 从源码构建
 
 ### Windows
 
-1. 在 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases) 下载 `EstellePet-Windows-x64.zip`。
-2. 解压到任意普通文件夹，运行 `EstellePet.exe`。
-3. 如出现 SmartScreen，选择“更多信息”→“仍要运行”。
+需要 Windows 10/11 和 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。在仓库根目录运行：
 
-Windows 版支持 64 位 Windows 10/11，为自包含构建，无需另行安装 .NET。
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
+```
 
-## 从源码构建
+脚本会生成：
+
+- `dist/windows-x64/EstellePet.exe`
+- `release/EstellePet-Windows-x64.zip`
+
+Windows 包是 x64 自包含程序，并随包附带 `INSTALL.md`；最终用户无需安装 .NET。GitHub Actions 会在版本标签推送时使用 Windows runner 构建，并执行启动冒烟测试。更多开发说明见 [Sources/EstellePet.Windows/README.md](Sources/EstellePet.Windows/README.md)。
 
 ### macOS
 
@@ -47,42 +52,24 @@ Windows 版支持 64 位 Windows 10/11，为自包含构建，无需另行安装
 /opt/anaconda3/bin/python3 scripts/build_runtime_assets.py
 /opt/anaconda3/bin/python3 scripts/build_status_icon.py
 ./scripts/build-app.sh
-```
-
-生成的应用位于 `dist/艾丝蒂尔桌宠.app`。
-
-创建分享压缩包：
-
-```bash
 ./scripts/package-release.sh
 ```
 
-### Windows
+生成的应用位于 `dist/艾丝蒂尔桌宠.app`，分享包位于 `release/艾丝蒂尔桌宠-macOS-arm64.zip`。
 
-在 Windows 10/11 上安装 .NET 8 SDK，然后运行：
+## 项目结构
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
-```
-
-脚本会生成自包含的 `release/艾丝蒂尔桌宠-Windows-x64.zip`。GitHub Actions 也会在版本标签推送时自动构建 Windows 包并创建 Release。
-
-## 目录
-
-- `Sources/EstellePet/`：macOS AppKit/Objective-C 程序和共用运行时资源。
+- `Sources/EstellePet/`：macOS AppKit/Objective-C 程序和两个平台共用的运行时 PNG 资源。
 - `Sources/EstellePet.Windows/`：Windows WPF/.NET 8 程序。
-- `Assets/Actions/从左向右走/`：当前正式走路动作。
-- `Assets/Actions/原地转棍/`：当前两圈转棍动作。
-- `Assets/Actions/被鼠标提起_气呼呼挣扎/`：当前鼠标拎起动作。
-- `Assets/Actions/坐下打坐/`：当前暂停动作、生成母图和正式帧。
-- `Assets/Actions/从右向左走_待制作/`：完整保留的未完成人体与动作草稿，当前不参与运行。
-- `Assets/UI/`：菜单栏双马尾头像图标。
-- `scripts/`：资源生成、构建和打包脚本。
-- `Support/`：应用配置。
+- `Assets/Actions/`：已确认动作的源图、正式帧和预览。
+- `Assets/Actions/从右向左走_待制作/`：保留的未完成生成草稿，当前不参与运行。
+- `Assets/UI/`：macOS 菜单栏和 Windows 系统托盘使用的双马尾图标。
+- `scripts/`：资源生成、macOS/Windows 构建和打包脚本。
+- `.github/workflows/build-windows.yml`：Windows 自动构建、启动测试和 Release 发布流程。
 
-## 隐私
+## 隐私与本地数据
 
-应用不连接网络，不读取通讯录、照片、麦克风、摄像头或定位信息。它只保存大小、速度、移动方式和上次桌面位置等本地偏好设置。Windows 版设置位于 `%LOCALAPPDATA%\EstellePet`。
+应用不连接网络，不读取通讯录、照片、麦克风、摄像头或定位信息。Windows 版设置位于 `%LOCALAPPDATA%\EstellePet\settings.json`；macOS 版使用系统偏好设置保存同类信息。
 
 ## 版权说明
 
