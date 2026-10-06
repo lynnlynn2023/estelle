@@ -1,0 +1,55 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build self-contained Windows package
+        shell: pwsh
+        run: ./scripts/build-windows.ps1
+
+      - name: Smoke test executable
+        shell: pwsh
+        run: |
+          $process = Start-Process "./dist/windows-x64/EstellePet.exe" -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) {
+            throw "EstellePet.exe exited during the startup smoke test."
+          }
+          Stop-Process -Id $process.Id -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EstellePet-Windows-x64
+          path: release/艾丝蒂尔桌宠-Windows-x64.zip
+          if-no-files-found: error
+
+      - name: Create GitHub release for tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "release/艾丝蒂尔桌宠-Windows-x64.zip" `
+            "release/艾丝蒂尔桌宠-macOS-arm64.zip" `
+            --generate-notes `
+            --title "艾丝蒂尔桌宠 ${{ github.ref_name }}"

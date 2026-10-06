@@ -4,4 +4,7 @@ __pycache__/
 .build/
 .venv*/
 dist/
+bin/
+obj/
+release/艾丝蒂尔桌宠-Windows-x64.zip
 *.log

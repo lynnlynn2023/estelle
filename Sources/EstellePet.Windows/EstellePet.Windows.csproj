@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>EstellePet</AssemblyName>
+    <RootNamespace>EstellePet.WindowsApp</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>../../Assets/UI/status-icon-twintail.ico</ApplicationIcon>
+    <Version>0.2.0</Version>
+    <Authors>lynnlynn2023</Authors>
+    <Description>艾丝蒂尔 Windows 桌面宠物</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="../EstellePet/Resources/*.png" Link="Resources/%(Filename)%(Extension)" />
+    <Resource Include="../../Assets/UI/status-icon-twintail.ico" Link="Resources/status-icon-twintail.ico" />
+  </ItemGroup>
+</Project>

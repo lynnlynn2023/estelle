@@ -2,10 +2,10 @@
 
 ## 系统要求
 
-- Apple Silicon Mac（M1、M2、M3、M4 或更新芯片）
-- macOS 13 或更高版本
+- macOS：Apple Silicon Mac，macOS 13 或更高版本。
+- Windows：64 位 Windows 10 或 Windows 11。
 
-## 安装步骤
+## macOS 安装
 
 1. 在本仓库下载 `release/艾丝蒂尔桌宠-macOS-arm64.zip`。
 2. 双击 ZIP 解压。
@@ -21,17 +21,27 @@
 
 出现安全提示是因为这个个人版本使用临时签名，没有购买 Apple Developer ID，也没有提交苹果公证；不代表应用需要额外系统权限。
 
+## Windows 安装
+
+1. 在 [GitHub Releases](https://github.com/lynnlynn2023/estelle/releases) 下载 `艾丝蒂尔桌宠-Windows-x64.zip`。
+2. 将 ZIP 完整解压到一个普通文件夹，不要直接在压缩包里运行。
+3. 双击 `EstellePet.exe`。
+4. 启动后，Windows 任务栏右侧托盘区会出现双马尾图标。
+
+如 Microsoft Defender SmartScreen 显示“Windows 已保护你的电脑”，点击“更多信息”，再点击“仍要运行”。这是因为个人版本没有购买 Windows 代码签名证书。
+
 ## 使用
 
 - 用鼠标拖动艾丝蒂尔，可以把她放到桌面任意高度或另一块屏幕。
-- 点击菜单栏双马尾图标，可以暂停、隐藏、切换“走路/原地踏步”、调整大小和速度。
+- macOS 点击菜单栏双马尾图标；Windows 右键点击系统托盘双马尾图标。菜单可以暂停、隐藏、切换“走路/原地踏步”、调整大小和速度。
 - “走路”模式只在当前活动屏幕中移动；把她拖到另一块屏幕后，新屏幕会成为活动屏幕。
 - “暂停”会立即进入打坐循环。
 
 ## 退出与卸载
 
-- 退出：点击菜单栏双马尾图标，选择“退出”。
-- 卸载：退出应用后，将“应用程序”中的 `艾丝蒂尔桌宠.app` 移到废纸篓。
+- 退出：打开菜单栏或系统托盘菜单，选择“退出”。
+- macOS 卸载：将“应用程序”中的 `艾丝蒂尔桌宠.app` 移到废纸篓。
+- Windows 卸载：退出后删除解压出的桌宠文件夹。
 - 应用不会安装后台服务或开机启动项目。
 
 如需同时清除本地偏好设置，可在“终端”中运行：
@@ -39,3 +49,5 @@
 ```bash
 defaults delete local.wenze.estellepet
 ```
+
+Windows 版如需同时清除偏好设置，删除 `%LOCALAPPDATA%\EstellePet` 文件夹即可。

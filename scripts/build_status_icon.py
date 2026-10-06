@@ -101,6 +101,11 @@ def main() -> None:
     RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
     master = draw_silhouette()
     master.resize((512, 512), Image.Resampling.LANCZOS).save(ASSET_DIR / "status-icon-twintail-master.png")
+    master.save(
+        ASSET_DIR / "status-icon-twintail.ico",
+        format="ICO",
+        sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+    )
     make_preview(master).save(ASSET_DIR / "status-icon-twintail-preview.png")
     master.resize((72, 72), Image.Resampling.LANCZOS).save(RESOURCE_DIR / "status-icon.png", optimize=True)
     print(ASSET_DIR / "status-icon-twintail-preview.png")

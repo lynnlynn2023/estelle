@@ -88,17 +88,17 @@ def save_meditate_frames() -> None:
 
 def build_action_frames() -> list[Image.Image]:
     side = Image.open(RIGHT_WALK / WALK_NAMES[3]).convert("RGBA")
-    front = Image.open(action.FRONT_PATH).convert("RGBA")
-    base, hand = action.remove_reference_staff(front)
+    base, hand = action.load_spin_layers()
     staff, staff_pivot = action.make_staff()
+    front_ready = action.held_staff_frame(base, hand, staff, staff_pivot, 90)
 
     enter = [
         action.place_sprite(side, 0),
         action.place_sprite(side, 42),
         action.place_sprite(side, 82),
-        action.place_sprite(front, 82),
-        action.place_sprite(front, 38),
-        action.place_sprite(front, 0),
+        action.lift_frame(front_ready, 82),
+        action.lift_frame(front_ready, 38),
+        action.lift_frame(front_ready, 0),
     ]
     spin_once = [
         action.spin_frame(
@@ -115,9 +115,9 @@ def build_action_frames() -> list[Image.Image]:
     # Hold the recognizable vertical angle briefly, then reverse the hop so the
     # last frame exactly matches the right-walk cycle's fourth frame.
     exit_frames = [
-        action.place_sprite(front, 0),
-        action.place_sprite(front, 38),
-        action.place_sprite(front, 82),
+        action.lift_frame(front_ready, 0),
+        action.lift_frame(front_ready, 38),
+        action.lift_frame(front_ready, 82),
         action.place_sprite(side, 82),
         action.place_sprite(side, 42),
         action.place_sprite(side, 0),

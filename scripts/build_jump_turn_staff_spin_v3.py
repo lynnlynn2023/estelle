@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 SIDE_PATH = ROOT / "Assets/Actions/从左向右走/Sources/WalkV3/Right/04-right-leg-passing-staff-back.png"
-FRONT_PATH = ROOT / "Assets/Actions/原地转棍/Sources/StaffTwirlV1/01-ready-vertical.png"
+COMPLETE_FRONT_PATH = ROOT / "Assets/Actions/原地转棍/Sources/StaffTwirlV1/front-standing-no-staff-complete.png"
 SOURCE_OUT = ROOT / "Assets/Actions/原地转棍/Generated/StaffTwirlV3"
 PREVIEW_OUT = ROOT / "Assets/Actions/原地转棍/Preview"
 SOURCE_OUT.mkdir(parents=True, exist_ok=True)
@@ -26,82 +26,31 @@ PIVOT = (SPRITE_OFFSET[0] + PIVOT_LOCAL[0], SPRITE_OFFSET[1] + PIVOT_LOCAL[1])
 SPIN_ANGLES = [90, 135, 180, 225, 270, 315, 360, 405]
 
 
-def line_geometry(size: tuple[int, int], start: tuple[float, float], end: tuple[float, float]):
-    width, height = size
-    yy, xx = np.mgrid[0:height, 0:width]
-    points = np.stack([xx, yy], axis=-1)
-    p0 = np.asarray(start, dtype=float)
-    p1 = np.asarray(end, dtype=float)
-    vector = p1 - p0
-    t = np.clip(((points - p0) * vector).sum(axis=-1) / (vector @ vector), 0, 1)
-    projection = p0 + t[..., None] * vector
-    distance = np.linalg.norm(points - projection, axis=-1)
-    return t, distance
-
-
-def remove_reference_staff(image: Image.Image) -> tuple[Image.Image, Image.Image]:
-    """Remove the diagonal reference staff while retaining a hand overlay."""
+def extract_gripping_hand(image: Image.Image) -> Image.Image:
+    """Extract the complete gripping hand so it can stay above the rotating staff."""
     rgba = np.asarray(image.convert("RGBA")).copy()
     height, width = rgba.shape[:2]
-    t, distance = line_geometry((width, height), (316, 35), (463, 1184))
     red, green, blue = [rgba[:, :, index].astype(float) for index in range(3)]
     alpha = rgba[:, :, 3]
     yy, xx = np.mgrid[0:height, 0:width]
 
-    # A full geometric corridor is more reliable than color selection here: it
-    # removes the shaft, both silver caps, antialiasing, and their dark outlines.
-    mask = ((distance < 73) & (t >= 0) & (t <= 1)).astype(np.uint8) * 255
-    mask = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=1)
-    mask_bool = mask > 0
-
-    inpainted = cv2.inpaint(rgba[:, :, :3], mask, 7, cv2.INPAINT_TELEA)
-    base = rgba.copy()
-    base[:, :, :3] = inpainted
-    base_alpha = base[:, :, 3]
-    base_alpha[mask_bool] = 0
-
-    # The vertical staff overlaps the left twin-tail. Reconstruct that narrow
-    # strip from the matching right twin-tail rather than painting a flat patch.
-    mirror_x = np.clip(1300 - xx, 0, width - 1)
-    mirrored = rgba[yy, mirror_x]
-    mr, mg, mb = [mirrored[:, :, index].astype(float) for index in range(3)]
-    mirrored_hair = (
-        (mirrored[:, :, 3] > 0)
-        & (mr > 125)
-        & (mg > 70)
-        & (mg < 185)
-        & (mb < 120)
-        & (mr > mg * 1.25)
-        & (mr < mg * 2.45)
-    )
-    hair_fill = mask_bool & mirrored_hair & (yy > 210) & (yy < 980)
-    base[hair_fill, :3] = mirrored[hair_fill, :3]
-    base_alpha[hair_fill] = mirrored[hair_fill, 3]
-    base[:, :, 3] = base_alpha
-    base[base[:, :, 3] == 0, :3] = 0
-
-    # Preserve the gloved gripping hand as a top layer above every rotated staff angle.
+    # The repaired master already contains the complete body and boot behind the
+    # removed vertical staff. Only lift the fist and its outline into a top layer.
     hand = np.zeros_like(rgba)
     hand_region = (((xx - 404) / 104) ** 2 + ((yy - 580) / 105) ** 2) <= 1
     skin = (red > 185) & (green > 120) & (blue > 85)
     glove = (red > 105) & (green > 55) & (green < 175) & (blue < 115) & (red < green * 2.5)
     hand_core = ((skin | glove) & hand_region & (alpha > 0)).astype(np.uint8) * 255
     hand_mask = cv2.dilate(hand_core, np.ones((7, 7), np.uint8), iterations=1) > 0
-    staff_red = (red > 65) & (green < 125) & (blue < 120) & (red > green * 1.35)
-    hand_keep = hand_mask & hand_region & (alpha > 0) & ~staff_red
+    hand_keep = hand_mask & hand_region & (alpha > 0)
     hand[hand_keep] = rgba[hand_keep]
-    hand_image = Image.fromarray(hand)
-    glove_base = Image.new("RGBA", hand_image.size, (0, 0, 0, 0))
-    glove_draw = ImageDraw.Draw(glove_base)
-    glove_draw.rounded_rectangle(
-        (362, 540, 450, 621),
-        radius=26,
-        fill=(166, 108, 58, 255),
-        outline=(79, 47, 34, 255),
-        width=5,
-    )
-    hand_image = Image.alpha_composite(glove_base, hand_image)
-    return Image.fromarray(base), hand_image
+    return Image.fromarray(hand)
+
+
+def load_spin_layers() -> tuple[Image.Image, Image.Image]:
+    """Load the approved staff-free master without deleting any body pixels."""
+    base = Image.open(COMPLETE_FRONT_PATH).convert("RGBA")
+    return base, extract_gripping_hand(base)
 
 
 def make_staff() -> tuple[Image.Image, tuple[int, int]]:
@@ -159,6 +108,31 @@ def staff_layer(staff: Image.Image, staff_pivot: tuple[int, int], angle: float) 
     return canvas.rotate(angle, resample=Image.Resampling.BICUBIC, center=PIVOT, expand=False)
 
 
+def held_staff_frame(
+    base: Image.Image,
+    hand: Image.Image,
+    staff: Image.Image,
+    staff_pivot: tuple[int, int],
+    angle: float,
+) -> Image.Image:
+    """Composite one staff angle without trails, keeping body and legs identical."""
+    character = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    character.alpha_composite(base, SPRITE_OFFSET)
+    frame = Image.alpha_composite(character, staff_layer(staff, staff_pivot, angle))
+    hand_canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    hand_canvas.alpha_composite(hand, SPRITE_OFFSET)
+    return Image.alpha_composite(frame, hand_canvas)
+
+
+def lift_frame(frame: Image.Image, lift: int) -> Image.Image:
+    """Move a complete canvas upward for the short hop transition."""
+    if lift == 0:
+        return frame.copy()
+    lifted = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    lifted.alpha_composite(frame, (0, -lift))
+    return lifted
+
+
 def tip_trails(angle: float, strength: float = 1.0) -> Image.Image:
     """Draw short arcs behind the two ends; never draw another staff."""
     glow = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
@@ -202,9 +176,9 @@ def preview_background(frame: Image.Image, size=(960, 960)) -> Image.Image:
 
 def main() -> None:
     side = Image.open(SIDE_PATH).convert("RGBA")
-    front = Image.open(FRONT_PATH).convert("RGBA")
-    base, hand = remove_reference_staff(front)
+    base, hand = load_spin_layers()
     staff, staff_pivot = make_staff()
+    front_ready = held_staff_frame(base, hand, staff, staff_pivot, 90)
 
     base.save(SOURCE_OUT / "front-standing-without-staff.png")
     hand.save(SOURCE_OUT / "right-hand-overlay.png")
@@ -214,9 +188,9 @@ def main() -> None:
         place_sprite(side, 0),
         place_sprite(side, 42),
         place_sprite(side, 82),
-        place_sprite(front, 82),
-        place_sprite(front, 38),
-        place_sprite(front, 0),
+        lift_frame(front_ready, 82),
+        lift_frame(front_ready, 38),
+        lift_frame(front_ready, 0),
     ]
     transition_durations = [250, 70, 70, 85, 85, 230]
 
