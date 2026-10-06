@@ -20,26 +20,28 @@ PREVIEW = ACTION_DIR / "Preview"
 WALK_ENTRY = ROOT / "Assets" / "Actions" / "从左向右走" / "Frames" / "01-right-foot-contact.png"
 
 TOE_CATCH = SOURCES / "01-toe-catch-start.png"
-STAFF_BRACE = SOURCES / "02-staff-brace-save.png"
+FORWARD_LURCH = SOURCES / "02-forward-lurch.png"
+STAFF_BRACE = SOURCES / "03-staff-brace-save.png"
+DEEP_COMPRESSION = SOURCES / "04-deep-compression.png"
 RUNTIME_SIZE = (900, 900)
 VISIBLE_HEIGHT = 722
 GROUND_Y = 800
 SUBJECT_CENTER_X = 414
-FRAME_DURATIONS_MS = [100, 120, 220, 140, 180]
+FRAME_DURATIONS_MS = [160, 180, 170, 220, 280, 180, 150, 150, 180]
 
 
 def runtime_frame(image: Image.Image) -> Image.Image:
     return image.convert("RGBA").resize(RUNTIME_SIZE, Image.Resampling.LANCZOS)
 
 
-def fitted_generated_frame(image: Image.Image) -> Image.Image:
+def fitted_generated_frame(image: Image.Image, scale_multiplier: float = 1.0) -> Image.Image:
     """Match generated keyframes to the approved walk frame's visible scale."""
     rgba = image.convert("RGBA")
     box = rgba.getchannel("A").getbbox()
     if box is None:
         raise ValueError("Stumble keyframe contains no visible pixels")
     crop = rgba.crop(box)
-    scale = VISIBLE_HEIGHT / crop.height
+    scale = VISIBLE_HEIGHT * scale_multiplier / crop.height
     resized = crop.resize(
         (round(crop.width * scale), VISIBLE_HEIGHT),
         Image.Resampling.LANCZOS,
@@ -54,12 +56,23 @@ def fitted_generated_frame(image: Image.Image) -> Image.Image:
 def build_frames() -> list[Image.Image]:
     entry = runtime_frame(action.place_sprite(Image.open(WALK_ENTRY).convert("RGBA"), 0))
     toe_catch = fitted_generated_frame(Image.open(TOE_CATCH))
+    forward_lurch = fitted_generated_frame(Image.open(FORWARD_LURCH), 1.10)
     staff_brace = fitted_generated_frame(Image.open(STAFF_BRACE))
+    deep_compression = fitted_generated_frame(Image.open(DEEP_COMPRESSION), 1.08)
 
-    # Reuse the same correct toe-catch drawing on recovery. This deliberately
-    # follows economical classic-JRPG keyframe animation and prevents the model
-    # from changing her limb or hair proportions in a separate recovery drawing.
-    return [entry, toe_catch, staff_brace, toe_catch.copy(), entry.copy()]
+    # Return through the same approved poses in reverse. This keeps the anatomy
+    # stable while giving the stumble a clear loss/compression/rebound arc.
+    return [
+        entry,
+        toe_catch,
+        forward_lurch,
+        staff_brace,
+        deep_compression,
+        staff_brace.copy(),
+        forward_lurch.copy(),
+        toe_catch.copy(),
+        entry.copy(),
+    ]
 
 
 def on_dark(image: Image.Image, size: tuple[int, int] = (720, 720)) -> Image.Image:

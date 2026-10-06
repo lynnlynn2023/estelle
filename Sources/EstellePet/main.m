@@ -136,8 +136,8 @@
 }
 
 - (NSArray<NSImage *> *)loadStumbleFrames {
-    NSMutableArray<NSImage *> *frames = [NSMutableArray arrayWithCapacity:5];
-    for (NSInteger index = 1; index <= 5; index++) {
+    NSMutableArray<NSImage *> *frames = [NSMutableArray arrayWithCapacity:9];
+    for (NSInteger index = 1; index <= 9; index++) {
         NSString *name = [NSString stringWithFormat:@"stumble-%02ld", (long)index];
         NSURL *url = [NSBundle.mainBundle URLForResource:name withExtension:@"png"];
         NSImage *image = url ? [[NSImage alloc] initWithContentsOfURL:url] : nil;
@@ -248,7 +248,7 @@ static const NSTimeInterval MeditateFrameDuration = 0.10;
 static const NSInteger ActionFrameCount = 29;
 static const NSInteger PauseTransitionFrameCount = 10;
 static const NSInteger ResumeTransitionFrameCount = 8;
-static const NSInteger StumbleFrameCount = 5;
+static const NSInteger StumbleFrameCount = 9;
 static const NSTimeInterval ActionFrameDurations[] = {
     0.250, 0.070, 0.070, 0.085, 0.085, 0.230,
     0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072,
@@ -263,7 +263,7 @@ static const NSTimeInterval ResumeTransitionFrameDurations[] = {
     0.100, 0.100, 0.120, 0.100, 0.100, 0.080, 0.080, 0.140,
 };
 static const NSTimeInterval StumbleFrameDurations[] = {
-    0.100, 0.120, 0.220, 0.140, 0.180,
+    0.160, 0.180, 0.170, 0.220, 0.280, 0.180, 0.150, 0.150, 0.180,
 };
 static const NSInteger StruggleStepCount = 6;
 static const NSInteger StruggleFrameSequence[] = {0, 1, 2, 3, 2, 1};

@@ -118,8 +118,8 @@ def save_resume_transition_frames() -> None:
 def save_stumble_frames() -> None:
     """Copy the five-frame walking stumble into app resources."""
     source_frames = sorted(STUMBLE.glob("stumble-*.png"))
-    if len(source_frames) != 5:
-        raise ValueError(f"Expected 5 stumble frames, found {len(source_frames)}")
+    if len(source_frames) != 9:
+        raise ValueError(f"Expected 9 stumble frames, found {len(source_frames)}")
 
     for old_frame in RESOURCES.glob("stumble-*.png"):
         old_frame.unlink()

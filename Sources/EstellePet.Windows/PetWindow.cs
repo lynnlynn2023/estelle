@@ -67,7 +67,8 @@ internal sealed class PetWindow : Window
 
     private static readonly int[] StruggleFrameSequence = [0, 1, 2, 3, 2, 1];
     private static readonly double[] StruggleFrameDurations = [0.190, 0.180, 0.160, 0.180, 0.160, 0.180];
-    private static readonly double[] StumbleFrameDurations = [0.100, 0.120, 0.220, 0.140, 0.180];
+    private static readonly double[] StumbleFrameDurations =
+        [0.160, 0.180, 0.170, 0.220, 0.280, 0.180, 0.150, 0.150, 0.180];
 
     private readonly PetSettings _settings;
     private readonly Grid _dragSurface;
@@ -173,7 +174,7 @@ internal sealed class PetWindow : Window
         _resumeTransitionFrames = LoadFrames("resume-transition", 8, oneBased: true, twoDigit: true);
         _struggleFrames = LoadFrames("struggle", 4, oneBased: true, twoDigit: true);
         _meditateFrames = LoadFrames("meditate", 24, oneBased: true, twoDigit: true);
-        _stumbleFrames = LoadFrames("stumble", 5, oneBased: true, twoDigit: true);
+        _stumbleFrames = LoadFrames("stumble", 9, oneBased: true, twoDigit: true);
         ShowWalkFrame(0);
 
         CreateTrayIcon();
