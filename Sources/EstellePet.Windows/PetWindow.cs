@@ -318,10 +318,14 @@ internal sealed class PetWindow : Window
         var rightEdge = workingArea.Right - windowRect.Width;
         if (_movementX >= rightEdge)
         {
-            _movementX = workingArea.Left - windowRect.Width;
+            // Do not stage the transparent window beyond this display. That
+            // coordinate may be visible on an adjacent monitor.
+            _movementX = workingArea.Left;
             _animationTime = 0;
             ShowWalkFrame(0);
         }
+
+        _movementX = Math.Clamp(_movementX, workingArea.Left, rightEdge);
 
         SetWindowPosition((int)Math.Round(_movementX), windowRect.Top);
     }

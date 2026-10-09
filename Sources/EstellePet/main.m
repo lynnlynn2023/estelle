@@ -738,11 +738,14 @@ static const NSTimeInterval StruggleFrameDurations[] = {
     CGFloat leftEdge = NSMinX(visible);
     CGFloat rightEdge = NSMaxX(visible) - NSWidth(frame);
     if (self.movementX >= rightEdge) {
-        self.movementX = leftEdge - NSWidth(frame);
+        // Never stage the window outside this screen: in a multi-display
+        // layout that coordinate can belong to a neighboring display.
+        self.movementX = leftEdge;
         self.direction = 1;
         self.animationTime = 0;
         [self.petView showWalkDirection:1 frameIndex:0];
     }
+    self.movementX = fmax(leftEdge, fmin(self.movementX, rightEdge));
     frame.origin.x = round(self.movementX);
     [self.panel setFrameOrigin:frame.origin];
 }
